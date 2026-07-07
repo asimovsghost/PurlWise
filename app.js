@@ -255,6 +255,7 @@ const App = {
   // Tool activation
   isMagnifierActive: false,
   isLineTrackerActive: false,
+  isFocusModeActive: false,
   lastPageBeforeJump: null,
 
   // Temporary file hold during creation
@@ -343,11 +344,24 @@ const App = {
       zoomValue: document.getElementById('zoom-value'),
       btnToggleTrackerLine: document.getElementById('btn-toggle-tracker-line'),
       btnToggleMagnifier: document.getElementById('btn-toggle-magnifier'),
+      btnToggleFocus: document.getElementById('btn-toggle-focus'),
       btnBookmarkPage: document.getElementById('btn-bookmark-page'),
       btnJumpBack: document.getElementById('btn-jump-back'),
       btnRotatePage: document.getElementById('btn-rotate-page'),
 
       interactiveContainer: document.getElementById('interactive-container'),
+      focusController: document.getElementById('focus-controller'),
+      focusRowValue: document.getElementById('focus-row-value'),
+      btnFocusRowMinus: document.getElementById('btn-focus-row-minus'),
+      btnFocusRowPlus: document.getElementById('btn-focus-row-plus'),
+      focusStitchValue: document.getElementById('focus-stitch-value'),
+      btnFocusStitchMinus: document.getElementById('btn-focus-stitch-minus'),
+      btnFocusStitchPlus: document.getElementById('btn-focus-stitch-plus'),
+      focusBookmarksWidget: document.getElementById('focus-bookmarks-widget'),
+      focusBookmarksListContainer: document.getElementById('focus-bookmarks-list-container'),
+      focusNotesWidget: document.getElementById('focus-notes-widget'),
+      focusNotesLogContainer: document.getElementById('focus-notes-log-container'),
+      btnFocusAddSticky: document.getElementById('btn-focus-add-sticky'),
       patternWrapper: document.getElementById('pattern-wrapper'),
       patternCanvas: document.getElementById('pattern-canvas'),
       annotationsOverlay: document.getElementById('annotations-overlay'),
@@ -503,6 +517,47 @@ const App = {
     // Tracker & Magnifier switches
     this.dom.btnToggleTrackerLine.addEventListener('click', () => this.toggleTrackerLineTool());
     this.dom.btnToggleMagnifier.addEventListener('click', () => this.toggleMagnifierTool());
+    
+    // Focus Mode switches & adjusters
+    this.dom.btnToggleFocus.addEventListener('click', () => this.toggleFocusMode());
+    this.dom.btnFocusRowMinus.addEventListener('click', () => this.adjustRow(-1));
+    this.dom.btnFocusRowPlus.addEventListener('click', () => this.adjustRow(1));
+    this.dom.btnFocusStitchMinus.addEventListener('click', () => this.adjustStitch(-1));
+    this.dom.btnFocusStitchPlus.addEventListener('click', () => this.adjustStitch(1));
+    
+    // Notes quick action in focus widget
+    this.dom.btnFocusAddSticky.addEventListener('click', () => {
+      this.placeStickyNoteAtCenter();
+    });
+
+    // Initialize dragging and minimize/restore events on all focus widgets
+    const widgets = document.querySelectorAll('.focus-widget');
+    widgets.forEach(widget => {
+      this.initWidgetDrag(widget);
+      
+      const minBtn = widget.querySelector('.focus-btn-minimize');
+      const restoreBtn = widget.querySelector('.focus-widget-restore-btn');
+      
+      if (minBtn) {
+        minBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          widget.classList.add('minimized');
+        });
+      }
+      
+      if (restoreBtn) {
+        restoreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          widget.classList.remove('minimized');
+        });
+      }
+      
+      widget.addEventListener('click', () => {
+        if (widget.classList.contains('minimized')) {
+          widget.classList.remove('minimized');
+        }
+      });
+    });
 
     // Drag-and-drop tracker line logic
     const line = this.dom.rowTrackerLine;
@@ -739,9 +794,16 @@ const App = {
     this.renderBookmarks();
     // Render pattern page
     await this.loadAndRenderPattern();
+
+    // Set focus mode on by default when entering the workspace
+    this.isFocusModeActive = false;
+    this.toggleFocusMode();
   },
 
   exitWorkspace(skipSave = false) {
+    if (this.isFocusModeActive) {
+      this.toggleFocusMode();
+    }
     // Save state on leave
     if (this.activeProject && !skipSave) {
       this.activeProject.lastActive = new Date().toISOString();
@@ -1214,11 +1276,15 @@ const App = {
   },
 
   renderNotesLog() {
-    const log = this.dom.notesLogContainer;
-    log.innerHTML = '';
+    const logs = [this.dom.notesLogContainer, this.dom.focusNotesLogContainer].filter(Boolean);
+    logs.forEach(log => {
+      log.innerHTML = '';
+    });
 
     if (!this.activeProject || !this.activeProject.notes || this.activeProject.notes.length === 0) {
-      log.innerHTML = `<p class="empty-notes-text">No notes yet. Double-click the pattern or click "+ Add" to place an interactive note!</p>`;
+      logs.forEach(log => {
+        log.innerHTML = `<p class="empty-notes-text">No notes yet. Double-click the pattern or click "+ Add" to place an interactive note!</p>`;
+      });
       return;
     }
 
@@ -1226,29 +1292,31 @@ const App = {
     const sorted = [...this.activeProject.notes].sort((a,b) => new Date(b.created) - new Date(a.created));
 
     sorted.forEach(note => {
-      const item = document.createElement('div');
-      item.className = 'notes-log-item';
-      item.innerHTML = `
-        <div class="notes-log-item-header">
-          <span>Page ${note.page}</span>
-          <span>${new Date(note.created).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-        </div>
-        <div class="notes-log-item-text">${note.text || '<i>Empty note. Click to write details.</i>'}</div>
-      `;
+      logs.forEach(log => {
+        const item = document.createElement('div');
+        item.className = 'notes-log-item';
+        item.innerHTML = `
+          <div class="notes-log-item-header">
+            <span>Page ${note.page}</span>
+            <span>${new Date(note.created).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          </div>
+          <div class="notes-log-item-text">${note.text || '<i>Empty note. Click to write details.</i>'}</div>
+        `;
 
-      item.addEventListener('click', () => {
-        // Go to page note was written on
-        if (this.activeProject.currentPageNum !== note.page) {
-          this.activeProject.currentPageNum = note.page;
-          this.renderPdfPage().then(() => {
+        item.addEventListener('click', () => {
+          // Go to page note was written on
+          if (this.activeProject.currentPageNum !== note.page) {
+            this.activeProject.currentPageNum = note.page;
+            this.renderPdfPage().then(() => {
+              this.focusOnPin(note.id);
+            });
+          } else {
             this.focusOnPin(note.id);
-          });
-        } else {
-          this.focusOnPin(note.id);
-        }
-      });
+          }
+        });
 
-      log.appendChild(item);
+        log.appendChild(item);
+      });
     });
   },
 
@@ -1274,6 +1342,9 @@ const App = {
     const val = this.activeProject.currentRow;
     this.dom.countRowValue.innerText = val.toString();
     this.dom.trackerRowNum.innerText = val.toString();
+    if (this.dom.focusRowValue) {
+      this.dom.focusRowValue.innerText = val.toString();
+    }
 
     // Trigger bounce scale micro-animation
     this.dom.countRowValue.classList.remove('bounce-animation');
@@ -1287,6 +1358,9 @@ const App = {
 
     // 2. Stitches
     this.dom.countStitchValue.innerText = this.activeProject.currentStitch.toString();
+    if (this.dom.focusStitchValue) {
+      this.dom.focusStitchValue.innerText = this.activeProject.currentStitch.toString();
+    }
     
     // Check if we can display stitch guidelines
     if (this.activeProject.patternType === 'sample') {
@@ -1422,6 +1496,12 @@ const App = {
     if (this.activeView !== 'workspace') return;
 
     switch (e.code) {
+      case 'Escape':
+        if (this.isFocusModeActive) {
+          e.preventDefault();
+          this.toggleFocusMode();
+        }
+        break;
       case 'Space':
         e.preventDefault();
         // Space advances row, Shift+Space goes back
@@ -1776,42 +1856,48 @@ const App = {
   },
 
   renderBookmarks() {
-    const container = this.dom.bookmarksListContainer;
-    container.innerHTML = '';
+    const containers = [this.dom.bookmarksListContainer, this.dom.focusBookmarksListContainer].filter(Boolean);
+    containers.forEach(container => {
+      container.innerHTML = '';
+    });
     
     if (!this.activeProject || !this.activeProject.bookmarks || this.activeProject.bookmarks.length === 0) {
-      container.innerHTML = `<p class="empty-bookmarks-text">No page bookmarks. Click the bookmark icon on the toolbar to add this page!</p>`;
+      containers.forEach(container => {
+        container.innerHTML = `<p class="empty-bookmarks-text">No page bookmarks. Click the bookmark icon on the toolbar to add this page!</p>`;
+      });
       return;
     }
     
     this.activeProject.bookmarks.forEach(page => {
-      const item = document.createElement('div');
-      item.className = 'bookmark-item';
-      item.innerHTML = `
-        <span class="bookmark-item-label">
-          <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="2.5" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          Page ${page}
-        </span>
-        <button class="bookmark-item-delete" title="Delete bookmark">
-          &times;
-        </button>
-      `;
-      
-      item.addEventListener('click', (e) => {
-        if (!e.target.closest('.bookmark-item-delete')) {
-          this.jumpToPageWithReturnTrack(page);
-        }
+      containers.forEach(container => {
+        const item = document.createElement('div');
+        item.className = 'bookmark-item';
+        item.innerHTML = `
+          <span class="bookmark-item-label">
+            <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" stroke-width="2.5" fill="currentColor"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            Page ${page}
+          </span>
+          <button class="bookmark-item-delete" title="Delete bookmark">
+            &times;
+          </button>
+        `;
+        
+        item.addEventListener('click', (e) => {
+          if (!e.target.closest('.bookmark-item-delete')) {
+            this.jumpToPageWithReturnTrack(page);
+          }
+        });
+        
+        item.querySelector('.bookmark-item-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.activeProject.bookmarks = this.activeProject.bookmarks.filter(b => b !== page);
+          this.updateBookmarkButtonUI();
+          this.renderBookmarks();
+          this.saveActiveProjectState();
+        });
+        
+        container.appendChild(item);
       });
-      
-      item.querySelector('.bookmark-item-delete').addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.activeProject.bookmarks = this.activeProject.bookmarks.filter(b => b !== page);
-        this.updateBookmarkButtonUI();
-        this.renderBookmarks();
-        this.saveActiveProjectState();
-      });
-      
-      container.appendChild(item);
     });
   },
 
@@ -1960,6 +2046,131 @@ const App = {
     reader.readAsText(file);
   },
 
+  // ----------------------------------------------------
+  // FOCUS MODE CONTROLS & INTERACTIONS
+  // ----------------------------------------------------
+  toggleFocusMode() {
+    if (!this.activeProject) return;
+    this.isFocusModeActive = !this.isFocusModeActive;
+
+    document.body.classList.toggle('focus-mode-active', this.isFocusModeActive);
+    
+    if (this.dom.btnToggleFocus) {
+      this.dom.btnToggleFocus.classList.toggle('active-toggle', this.isFocusModeActive);
+    }
+
+    const focusWidgets = [
+      this.dom.focusController,
+      this.dom.focusBookmarksWidget,
+      this.dom.focusNotesWidget
+    ].filter(Boolean);
+
+    focusWidgets.forEach(widget => {
+      widget.classList.toggle('hidden', !this.isFocusModeActive);
+      // Reset position and class on enter
+      if (this.isFocusModeActive) {
+        widget.classList.remove('minimized');
+        widget.style.left = '';
+        widget.style.top = '';
+        widget.style.right = '';
+        widget.style.bottom = '';
+      }
+    });
+
+    if (this.isFocusModeActive) {
+      this.updateCounterUI();
+      this.renderBookmarks();
+      this.renderNotesLog();
+    }
+
+    // Redraw components because screen coordinates shift/expand
+    this.renderTrackerLine();
+    this.renderNotesOnOverlay();
+  },
+
+  initWidgetDrag(widget) {
+    const handle = widget ? widget.querySelector('.focus-drag-handle') : null;
+    const restoreBtn = widget ? widget.querySelector('.focus-widget-restore-btn') : null;
+    if (!widget || !handle) return;
+
+    let isDragging = false;
+    let startX, startY;
+    let initialLeft, initialTop;
+
+    const onStart = (e) => {
+      // If clicking action buttons (other than the restoreBtn itself), don't trigger drag
+      if (e.target.closest('button') && e.target.closest('button') !== restoreBtn) return;
+      
+      isDragging = true;
+      widget.classList.add('dragging');
+      
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      
+      startX = clientX;
+      startY = clientY;
+      
+      const rect = widget.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      
+      widget.style.right = 'auto';
+      widget.style.bottom = 'auto';
+      widget.style.left = `${initialLeft}px`;
+      widget.style.top = `${initialTop}px`;
+      
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+      
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onMove = (e) => {
+      if (!isDragging) return;
+      
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      
+      const dx = clientX - startX;
+      const dy = clientY - startY;
+      
+      let newLeft = initialLeft + dx;
+      let newTop = initialTop + dy;
+      
+      const rect = widget.getBoundingClientRect();
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      
+      // Prevent dragging off screen (keep 10px padding)
+      newLeft = Math.max(10, Math.min(newLeft, viewportW - rect.width - 10));
+      newTop = Math.max(10, Math.min(newTop, viewportH - rect.height - 10));
+      
+      widget.style.left = `${newLeft}px`;
+      widget.style.top = `${newTop}px`;
+      
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onEnd = () => {
+      isDragging = false;
+      widget.classList.remove('dragging');
+      
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+
+    handle.addEventListener('mousedown', onStart);
+    handle.addEventListener('touchstart', onStart, { passive: false });
+    
+    if (restoreBtn) {
+      restoreBtn.addEventListener('mousedown', onStart);
+      restoreBtn.addEventListener('touchstart', onStart, { passive: false });
+    }
+  },
 
 };
 

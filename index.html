@@ -190,6 +190,9 @@
                 <button id="btn-toggle-magnifier" class="btn" title="Toggle Magnifying Glass Chart Reader">
                   Chart Magnifier
                 </button>
+                <button id="btn-toggle-focus" class="btn" title="Toggle Focus Mode (Fullscreen)">
+                  Focus Mode
+                </button>
               </div>
             </div>
 
@@ -228,6 +231,116 @@
                   <canvas id="magnifier-canvas"></canvas>
                 </div>
               </div>
+            </div>
+            
+            <!-- Focus Mode Floating Widgets -->
+            
+            <!-- 1. Counter Widget -->
+            <div id="focus-controller" class="focus-widget focus-controller hidden">
+              <div class="focus-widget-header">
+                <div class="focus-drag-handle" title="Drag to move">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                </div>
+                <span class="focus-widget-title">Counters</span>
+                <div class="focus-widget-actions">
+                  <button class="focus-btn-minimize" title="Minimize">
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="focus-widget-content">
+                <div class="focus-content">
+                  <!-- Row Section -->
+                  <div class="focus-section focus-row-section">
+                    <span class="focus-section-label">ROW</span>
+                    <div class="focus-counter-controls">
+                      <button id="btn-focus-row-minus" class="focus-btn-adjust minus" title="Decrease Row">-</button>
+                      <span id="focus-row-value" class="focus-counter-value">1</span>
+                      <button id="btn-focus-row-plus" class="focus-btn-adjust plus" title="Increase Row">+</button>
+                    </div>
+                  </div>
+
+                  <!-- Divider -->
+                  <div class="focus-section-divider"></div>
+
+                  <!-- Stitch Section -->
+                  <div class="focus-section focus-stitch-section">
+                    <span class="focus-section-label">STITCH</span>
+                    <div class="focus-counter-controls">
+                      <button id="btn-focus-stitch-minus" class="focus-btn-adjust minus small" title="Decrease Stitch">-</button>
+                      <span id="focus-stitch-value" class="focus-counter-value small">0</span>
+                      <button id="btn-focus-stitch-plus" class="focus-btn-adjust plus small" title="Increase Stitch">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Restore Trigger Icon -->
+              <button class="focus-widget-restore-btn" title="Restore Counters">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M7 12 C 7 8, 17 8, 17 12" />
+                  <path d="M7 12 C 7 16, 17 16, 17 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <!-- 2. Bookmarks Widget -->
+            <div id="focus-bookmarks-widget" class="focus-widget focus-bookmarks hidden">
+              <div class="focus-widget-header">
+                <div class="focus-drag-handle" title="Drag to move">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                </div>
+                <span class="focus-widget-title">Bookmarks</span>
+                <div class="focus-widget-actions">
+                  <button class="focus-btn-minimize" title="Minimize">
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="focus-widget-content">
+                <div id="focus-bookmarks-list-container" class="bookmarks-list-container">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+
+              <!-- Restore Trigger Icon -->
+              <button class="focus-widget-restore-btn" title="Restore Bookmarks">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- 3. Notes Widget -->
+            <div id="focus-notes-widget" class="focus-widget focus-notes hidden">
+              <div class="focus-widget-header">
+                <div class="focus-drag-handle" title="Drag to move">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                </div>
+                <span class="focus-widget-title">Notes</span>
+                <div class="focus-widget-actions">
+                  <button id="btn-focus-add-sticky" class="focus-widget-header-btn" title="Add interactive note">+</button>
+                  <button class="focus-btn-minimize" title="Minimize">
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="focus-widget-content">
+                <div id="focus-notes-log-container" class="notes-log-container">
+                  <!-- Rendered dynamically -->
+                </div>
+              </div>
+
+              <!-- Restore Trigger Icon -->
+              <button class="focus-widget-restore-btn" title="Restore Notes">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none">
+                  <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                </svg>
+              </button>
             </div>
           </div>
 
