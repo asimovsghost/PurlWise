@@ -1,6 +1,6 @@
 /**
  * app.js
- * Core controller for the KnitFlow progress tracking application.
+ * Core controller for the PurlWise progress tracking application.
  * Manages database, state, rendering, user interactions, audio synthesis, and toolkits.
  */
 // ----------------------------------------------------
@@ -62,11 +62,18 @@ const Dialogs = {
       input.select();
       
       input.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-          overlay.remove();
-          resolve(input.value.trim());
+        if (this.dom.focusControllerWidget) {
+          this.dom.focusControllerWidget.classList.remove('hidden');
+          this.dom.focusControllerWidget.classList.remove('minimized');
         }
-      };
+        if (this.dom.focusBookmarksWidget && this.activeProject && this.activeProject.bookmarks && this.activeProject.bookmarks.length > 0) {
+          this.dom.focusBookmarksWidget.classList.remove('hidden');
+          this.dom.focusBookmarksWidget.classList.remove('minimized');
+        }
+        if (this.dom.focusNotesWidget && this.activeProject && this.activeProject.notes) {
+          this.dom.focusNotesWidget.classList.remove('hidden');
+          this.dom.focusNotesWidget.classList.remove('minimized');
+        }};
 
       overlay.querySelector('#prompt-cancel-btn').onclick = () => {
         overlay.remove();
@@ -110,7 +117,7 @@ const Dialogs = {
 // 1. INDEXEDDB MANAGER (LOCAL STORAGE OF IMAGES/PDFs)
 // ----------------------------------------------------
 const DBManager = {
-  dbName: 'KnitFlowDB',
+  dbName: 'PurlWiseDB',
   dbVersion: 1,
   db: null,
 
@@ -253,7 +260,6 @@ const App = {
   dragStartTrackerY: 0,
 
   // Tool activation
-  isMagnifierActive: false,
   isLineTrackerActive: false,
   isFocusModeActive: false,
   lastPageBeforeJump: null,
@@ -309,8 +315,7 @@ const App = {
       projTitle: document.getElementById('workspace-project-title'),
       projCategory: document.getElementById('workspace-project-category'),
       projPageMeta: document.getElementById('workspace-project-page'),
-      btnDeleteProject: document.getElementById('btn-delete-project'),
-      
+      btnDeleteProject: document.getElementById('btn-delete-project'),      
       // Sidebar counters
       countRowValue: document.getElementById('count-row-value'),
       btnRowMinus: document.getElementById('btn-row-minus'),
@@ -336,6 +341,7 @@ const App = {
       btnAddSticky: document.getElementById('btn-add-sticky'),
 
       // Viewport & Workspace Canvas
+      btnBackToProjects: document.getElementById('btn-back-to-projects'),
       btnPrevPage: document.getElementById('btn-prev-page'),
       btnNextPage: document.getElementById('btn-next-page'),
       pageIndicator: document.getElementById('page-indicator'),
@@ -343,25 +349,27 @@ const App = {
       btnZoomIn: document.getElementById('btn-zoom-in'),
       zoomValue: document.getElementById('zoom-value'),
       btnToggleTrackerLine: document.getElementById('btn-toggle-tracker-line'),
-      btnToggleMagnifier: document.getElementById('btn-toggle-magnifier'),
       btnToggleFocus: document.getElementById('btn-toggle-focus'),
       btnBookmarkPage: document.getElementById('btn-bookmark-page'),
       btnJumpBack: document.getElementById('btn-jump-back'),
       btnRotatePage: document.getElementById('btn-rotate-page'),
 
       interactiveContainer: document.getElementById('interactive-container'),
-      focusController: document.getElementById('focus-controller'),
+      focusBottomBar: document.getElementById('focus-bottom-bar'),
+      focusLeftDrawer: document.getElementById('focus-left-drawer'),
+      btnFocusDrawerToggle: document.getElementById('btn-focus-drawer-toggle'),
+      btnFocusDrawerClose: document.getElementById('btn-focus-drawer-close'),
+      btnFocusExpandSubcounters: document.getElementById('btn-focus-expand-subcounters'),
       focusRowValue: document.getElementById('focus-row-value'),
       btnFocusRowMinus: document.getElementById('btn-focus-row-minus'),
       btnFocusRowPlus: document.getElementById('btn-focus-row-plus'),
       focusStitchValue: document.getElementById('focus-stitch-value'),
       btnFocusStitchMinus: document.getElementById('btn-focus-stitch-minus'),
       btnFocusStitchPlus: document.getElementById('btn-focus-stitch-plus'),
-      focusBookmarksWidget: document.getElementById('focus-bookmarks-widget'),
       focusBookmarksListContainer: document.getElementById('focus-bookmarks-list-container'),
-      focusNotesWidget: document.getElementById('focus-notes-widget'),
       focusNotesLogContainer: document.getElementById('focus-notes-log-container'),
       btnFocusAddSticky: document.getElementById('btn-focus-add-sticky'),
+      focusSubcountersContainer: document.getElementById('focus-subcounters-container'),
       patternWrapper: document.getElementById('pattern-wrapper'),
       patternCanvas: document.getElementById('pattern-canvas'),
       annotationsOverlay: document.getElementById('annotations-overlay'),
@@ -370,9 +378,6 @@ const App = {
       trackerBtnOpacity: document.getElementById('tracker-btn-opacity'),
       trackerBtnColor: document.getElementById('tracker-btn-color'),
       trackerBtnSize: document.getElementById('tracker-btn-size'),
-
-      magnifierGlass: document.getElementById('magnifier-glass'),
-      magnifierCanvas: document.getElementById('magnifier-canvas'),
 
       // Project Modal
       modalProject: document.getElementById('modal-project'),
@@ -499,7 +504,6 @@ const App = {
     this.dom.btnAddSubcounter.addEventListener('click', () => this.promptCreateSubcounter());
 
     // Delete Project
-    this.dom.btnDeleteProject.addEventListener('click', () => this.deleteActiveProject());
 
 
 
@@ -508,15 +512,22 @@ const App = {
     this.dom.btnJumpBack.addEventListener('click', () => this.jumpBack());
     this.dom.btnRotatePage.addEventListener('click', () => this.rotatePage());
 
-    // Toolbar viewport controls
+    // Toolbar Viewport Controls
+    if (this.dom.btnBackToProjects) {
+      this.dom.btnBackToProjects.addEventListener('click', () => {
+        if (this.isFocusModeActive) {
+          this.toggleFocusMode();
+        }
+        this.exitWorkspace(false);
+      });
+    }
     this.dom.btnPrevPage.addEventListener('click', () => this.changePage(-1));
     this.dom.btnNextPage.addEventListener('click', () => this.changePage(1));
     this.dom.btnZoomIn.addEventListener('click', () => this.adjustZoom(10));
     this.dom.btnZoomOut.addEventListener('click', () => this.adjustZoom(-10));
-
-    // Tracker & Magnifier switches
+    
+    // Tracker switches
     this.dom.btnToggleTrackerLine.addEventListener('click', () => this.toggleTrackerLineTool());
-    this.dom.btnToggleMagnifier.addEventListener('click', () => this.toggleMagnifierTool());
     
     // Focus Mode switches & adjusters
     this.dom.btnToggleFocus.addEventListener('click', () => this.toggleFocusMode());
@@ -530,33 +541,46 @@ const App = {
       this.placeStickyNoteAtCenter();
     });
 
-    // Initialize dragging and minimize/restore events on all focus widgets
-    const widgets = document.querySelectorAll('.focus-widget');
-    widgets.forEach(widget => {
-      this.initWidgetDrag(widget);
-      
-      const minBtn = widget.querySelector('.focus-btn-minimize');
-      const restoreBtn = widget.querySelector('.focus-widget-restore-btn');
-      
-      if (minBtn) {
-        minBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          widget.classList.add('minimized');
-        });
-      }
-      
-      if (restoreBtn) {
-        restoreBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          widget.classList.remove('minimized');
-        });
-      }
-      
-      widget.addEventListener('click', () => {
-        if (widget.classList.contains('minimized')) {
-          widget.classList.remove('minimized');
+    // Focus UI drawer & bottom bar toggle logic
+    if (this.dom.btnFocusDrawerToggle) {
+      this.dom.btnFocusDrawerToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.dom.focusLeftDrawer.classList.remove('hidden');
+      });
+    }
+
+    if (this.dom.btnFocusDrawerClose) {
+      this.dom.btnFocusDrawerClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.dom.focusLeftDrawer.classList.add('hidden');
+      });
+    }
+
+    if (this.dom.btnFocusExpandSubcounters) {
+      this.dom.btnFocusExpandSubcounters.addEventListener('click', () => {
+        const expanded = this.dom.btnFocusExpandSubcounters.classList.toggle('expanded');
+        if (this.dom.focusSubcountersContainer) {
+          if (expanded) {
+            this.dom.focusSubcountersContainer.classList.add('expanded');
+          } else {
+            this.dom.focusSubcountersContainer.classList.remove('expanded');
+          }
         }
       });
+    }
+
+    // Optional: click outside to close left drawer
+    document.addEventListener('click', (e) => {
+      if (this.isFocusModeActive && this.dom.focusLeftDrawer && !this.dom.focusLeftDrawer.classList.contains('hidden')) {
+        const isOutsideDrawer = !this.dom.focusLeftDrawer.contains(e.target);
+        const isNotToggle = !this.dom.btnFocusDrawerToggle.contains(e.target);
+        const isNotTopToolbar = !e.target.closest('.viewport-toolbar');
+        const isNotBottomBar = !e.target.closest('#focus-bottom-bar');
+        
+        if (isOutsideDrawer && isNotToggle && isNotTopToolbar && isNotBottomBar) {
+          this.dom.focusLeftDrawer.classList.add('hidden');
+        }
+      }
     });
 
     // Drag-and-drop tracker line logic
@@ -622,17 +646,15 @@ const App = {
     // Keyboard Shortcuts Listener
     document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
 
-    // Chart magnifier glass tracker
-    this.dom.patternWrapper.addEventListener('mousemove', (e) => this.updateMagnifierGlass(e));
-    this.dom.patternWrapper.addEventListener('mouseleave', () => {
-      if (this.isMagnifierActive) {
-        this.dom.magnifierGlass.classList.add('hidden');
-      }
-    });
-
     // Notes quick action
     this.dom.btnAddSticky.addEventListener('click', () => {
       this.placeStickyNoteAtCenter();
+    });
+
+    window.addEventListener('resize', () => {
+      if (this.isFocusModeActive) {
+        this.constrainFocusWidgets();
+      }
     });
   },
 
@@ -640,7 +662,7 @@ const App = {
   // THEME & SOUND CONTROLS
   // ----------------------------------------------------
   initTheme() {
-    const savedTheme = localStorage.getItem('knitflow-theme');
+    const savedTheme = localStorage.getItem('purlwise-theme');
     const isDark = (savedTheme === 'dark');
     document.body.classList.toggle('dark-mode', isDark);
     document.body.classList.toggle('light-mode', !isDark);
@@ -656,7 +678,7 @@ const App = {
     this.dom.themeSun.classList.toggle('hidden', isDark);
     this.dom.themeMoon.classList.toggle('hidden', !isDark);
     
-    localStorage.setItem('knitflow-theme', isDark ? 'dark' : 'light');
+    localStorage.setItem('purlwise-theme', isDark ? 'dark' : 'light');
   },
 
   toggleSound() {
@@ -735,7 +757,17 @@ const App = {
           <div class="project-card-badge">${project.category}</div>
         </div>
         <div class="project-card-info">
-          <h4 class="project-card-title">${project.title}</h4>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h4 class="project-card-title" style="flex: 1; margin-right: 10px;">${project.title}</h4>
+            <div class="project-card-menu" style="position: relative;">
+              <button class="btn-card-menu btn btn-icon-only small" aria-label="Options" style="background: none; border: none; color: var(--color-text-light); padding: 4px;">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+              </button>
+              <div class="project-card-dropdown hidden" style="position: absolute; right: 0; top: 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 100; min-width: 120px; overflow: hidden;">
+                <button class="btn-delete-project-card" style="width: 100%; padding: 10px 16px; text-align: left; background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 0.9rem; transition: background 0.2s;">Delete Project</button>
+              </div>
+            </div>
+          </div>
           <div class="project-card-progressbar">
             <div class="project-card-progressfill" style="width: ${Math.min(pct, 100)}%"></div>
           </div>
@@ -750,8 +782,45 @@ const App = {
         </div>
       `;
 
-      card.addEventListener('click', () => this.enterWorkspace(project.id));
+      // Event listener for opening the workspace
+      card.addEventListener('click', (e) => {
+        // If they clicked the menu or delete button, ignore
+        if (e.target.closest('.project-card-menu')) return;
+        this.enterWorkspace(project.id);
+      });
+
+      // Event listeners for the menu
+      const menuBtn = card.querySelector('.btn-card-menu');
+      const dropdown = card.querySelector('.project-card-dropdown');
+      const delBtn = card.querySelector('.btn-delete-project-card');
+
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Close other open dropdowns
+        document.querySelectorAll('.project-card-dropdown:not(.hidden)').forEach(d => {
+          if (d !== dropdown) d.classList.add('hidden');
+        });
+        dropdown.classList.toggle('hidden');
+      });
+
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        dropdown.classList.add('hidden');
+        if (await Dialogs.confirm(`Are you sure you want to delete "${project.title}"?`)) {
+          await DBManager.deleteProject(project.id);
+          await this.loadAllProjectsFromDB();
+          this.renderProjectsGrid();
+        }
+      });
+
       this.dom.projectsGrid.appendChild(card);
+    });
+
+    // Close any open dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.project-card-menu')) {
+        document.querySelectorAll('.project-card-dropdown:not(.hidden)').forEach(d => d.classList.add('hidden'));
+      }
     });
   },
 
@@ -773,10 +842,9 @@ const App = {
 
     // Reset view variables
     this.zoomLevel = 100;
-    this.dom.zoomValue.innerText = '100%';
-    this.isMagnifierActive = false;
-    this.dom.btnToggleMagnifier.classList.remove('active-toggle');
-    this.dom.magnifierGlass.classList.add('hidden');
+    if (this.dom.zoomValue) {
+      this.dom.zoomValue.innerText = '100%';
+    }
 
     this.isLineTrackerActive = false;
     this.dom.btnToggleTrackerLine.classList.remove('active-toggle');
@@ -947,8 +1015,10 @@ const App = {
   },
 
   adjustZoom(amount) {
-    this.zoomLevel = Math.max(50, Math.min(250, this.zoomLevel + amount));
-    this.dom.zoomValue.innerText = `${this.zoomLevel}%`;
+    this.zoomLevel = Math.max(50, Math.min(500, this.zoomLevel + amount));
+    if (this.dom.zoomValue) {
+      this.dom.zoomValue.innerText = `${this.zoomLevel}%`;
+    }
     this.updateCanvasDisplaySize();
     
     // Notes and tracker will naturally scale due to absolute position sizing percents,
@@ -1058,92 +1128,7 @@ const App = {
   },
 
   // ----------------------------------------------------
-  // CHART MAGNIFIER GLASS
-  // ----------------------------------------------------
-  toggleMagnifierTool() {
-    this.isMagnifierActive = !this.isMagnifierActive;
-    this.dom.btnToggleMagnifier.classList.toggle('active-toggle', this.isMagnifierActive);
-    this.dom.magnifierGlass.classList.add('hidden');
-  },
 
-  updateMagnifierGlass(e) {
-    if (!this.isMagnifierActive) return;
-    
-    const glass = this.dom.magnifierGlass;
-    const mCanvas = this.dom.magnifierCanvas;
-    const pCanvas = this.dom.patternCanvas;
-    const wrapper = this.dom.patternWrapper;
-
-    glass.classList.remove('hidden');
-
-    // Get mouse coordinates relative to canvas wrapper
-    const rect = wrapper.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Position the glass center at mouse cursor
-    glass.style.left = `${x - 75}px`;
-    glass.style.top = `${y - 75}px`;
-
-    // Map wrapper coordinate space back to the underlying high-res source canvas coordinates
-    const scaleX = pCanvas.width / wrapper.offsetWidth;
-    const scaleY = pCanvas.height / wrapper.offsetHeight;
-    
-    const sourceX = x * scaleX;
-    const sourceY = y * scaleY;
-
-    // Magnifier configuration
-    const zoom = 2; // 2x magnification
-    const size = 150; // glass diameter
-    
-    mCanvas.width = size;
-    mCanvas.height = size;
-    const mCtx = mCanvas.getContext('2d');
-
-    // Crop from pattern canvas and draw zoomed on magnifier canvas
-    mCtx.save();
-    // Circular crop
-    mCtx.beginPath();
-    mCtx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
-    mCtx.clip();
-    
-    mCtx.fillStyle = '#fff';
-    mCtx.fillRect(0, 0, size, size);
-
-    // Draw segment
-    const sWidth = (size / zoom);
-    const sHeight = (size / zoom);
-    
-    mCtx.drawImage(
-      pCanvas,
-      sourceX - sWidth/2,
-      sourceY - sHeight/2,
-      sWidth,
-      sHeight,
-      0,
-      0,
-      size,
-      size
-    );
-
-    // Draw subtle grid overlay inside magnifier for pattern readability
-    mCtx.strokeStyle = 'rgba(0,0,0,0.06)';
-    mCtx.lineWidth = 1;
-    for (let lx = 0; lx < size; lx += 15) {
-      mCtx.beginPath();
-      mCtx.moveTo(lx, 0);
-      mCtx.lineTo(lx, size);
-      mCtx.stroke();
-    }
-    for (let ly = 0; ly < size; ly += 15) {
-      mCtx.beginPath();
-      mCtx.moveTo(0, ly);
-      mCtx.lineTo(size, ly);
-      mCtx.stroke();
-    }
-
-    mCtx.restore();
-  },
 
   // ----------------------------------------------------
   // INTERACTIVE STICKY NOTES & ANNOTATIONS
@@ -1418,11 +1403,18 @@ const App = {
   // ----------------------------------------------------
   renderSubcounters() {
     const container = this.dom.subcountersContainer;
-    container.innerHTML = '';
+    const focusContainer = document.getElementById('focus-subcounters-container');
+    
+    if (container) container.innerHTML = '';
+    
+    if (!this.activeProject || !this.activeProject.subCounters || this.activeProject.subCounters.length === 0) {
+      if (focusContainer) focusContainer.innerHTML = ''; // Keep it clean and thin if no sub-counters
+      return;
+    }
 
-    if (!this.activeProject || !this.activeProject.subCounters) return;
+    if (focusContainer) focusContainer.innerHTML = '';
 
-    this.activeProject.subCounters.forEach(sub => {
+    this.activeProject.subCounters.forEach((sub, index) => {
       const item = document.createElement('div');
       item.className = 'subcounter-card-item';
       item.innerHTML = `
@@ -1439,27 +1431,48 @@ const App = {
         </div>
       `;
 
-      item.querySelector('.inc-sub').addEventListener('click', () => {
-        sub.value++;
-        this.renderSubcounters();
-        AudioSynth.playWoodClick();
-        this.saveActiveProjectState();
-      });
+      const focusItem = document.createElement('div');
+      focusItem.className = 'bar-counter-group';
+      focusItem.innerHTML = `
+        <span class="bar-label" style="width: 80px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${sub.name}">${sub.name}</span>
+        <button class="bar-btn-adjust minus dec-sub">-</button>
+        <span class="bar-value">${sub.value}</span>
+        <button class="bar-btn-adjust plus inc-sub">+</button>
+      `;
 
-      item.querySelector('.dec-sub').addEventListener('click', () => {
-        sub.value = Math.max(0, sub.value - 1);
-        this.renderSubcounters();
-        AudioSynth.playWoodClick();
-        this.saveActiveProjectState();
-      });
+      const attachEvents = (el) => {
+        el.querySelector('.inc-sub').addEventListener('click', () => {
+          sub.value++;
+          this.renderSubcounters();
+          AudioSynth.playWoodClick();
+          this.saveActiveProjectState();
+        });
 
-      item.querySelector('.subcounter-delete-btn').addEventListener('click', () => {
-        this.activeProject.subCounters = this.activeProject.subCounters.filter(s => s.id !== sub.id);
-        this.renderSubcounters();
-        this.saveActiveProjectState();
-      });
+        el.querySelector('.dec-sub').addEventListener('click', () => {
+          sub.value = Math.max(0, sub.value - 1);
+          this.renderSubcounters();
+          AudioSynth.playWoodClick();
+          this.saveActiveProjectState();
+        });
 
-      container.appendChild(item);
+        const delBtn = el.querySelector('.subcounter-delete-btn');
+        if (delBtn) {
+          delBtn.addEventListener('click', () => {
+            this.activeProject.subCounters = this.activeProject.subCounters.filter(s => s.id !== sub.id);
+            this.renderSubcounters();
+            this.saveActiveProjectState();
+          });
+        }
+      };
+
+      attachEvents(item);
+      attachEvents(focusItem);
+
+      if (container) container.appendChild(item);
+      
+      if (focusContainer) {
+        focusContainer.appendChild(focusItem);
+      }
     });
   },
 
@@ -1982,7 +1995,7 @@ const App = {
     try {
       const projects = await DBManager.getAllProjects();
       const backupData = {
-        app: 'KnitFlow',
+        app: 'PurlWise',
         version: '1.0.0',
         exportedAt: new Date().toISOString(),
         projects: projects
@@ -1994,7 +2007,7 @@ const App = {
       
       const link = document.createElement('a');
       link.href = url;
-      link.download = `knitflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `purlwise-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -2012,8 +2025,8 @@ const App = {
     reader.onload = async (event) => {
       try {
         const backup = JSON.parse(event.target.result);
-        if (backup.app !== 'KnitFlow' || !Array.isArray(backup.projects)) {
-          await Dialogs.alert('Invalid backup file. Make sure you upload a .json file exported from KnitFlow.');
+        if (backup.app !== 'PurlWise' || !Array.isArray(backup.projects)) {
+          await Dialogs.alert('Invalid backup file. Make sure you upload a .json file exported from PurlWise.');
           return;
         }
         
@@ -2059,118 +2072,28 @@ const App = {
       this.dom.btnToggleFocus.classList.toggle('active-toggle', this.isFocusModeActive);
     }
 
-    const focusWidgets = [
-      this.dom.focusController,
-      this.dom.focusBookmarksWidget,
-      this.dom.focusNotesWidget
-    ].filter(Boolean);
-
-    focusWidgets.forEach(widget => {
-      widget.classList.toggle('hidden', !this.isFocusModeActive);
-      // Reset position and class on enter
-      if (this.isFocusModeActive) {
-        widget.classList.remove('minimized');
-        widget.style.left = '';
-        widget.style.top = '';
-        widget.style.right = '';
-        widget.style.bottom = '';
-      }
-    });
+    if (this.dom.btnToggleFocus) {
+      this.dom.btnToggleFocus.classList.toggle('active-toggle', this.isFocusModeActive);
+    }
 
     if (this.isFocusModeActive) {
+      if (this.dom.focusBottomBar) this.dom.focusBottomBar.classList.remove('hidden');
+      if (this.dom.btnFocusDrawerToggle) this.dom.btnFocusDrawerToggle.classList.remove('hidden');
+      
       this.updateCounterUI();
       this.renderBookmarks();
       this.renderNotesLog();
+      this.renderSubcounters();
+    } else {
+      if (this.dom.focusBottomBar) this.dom.focusBottomBar.classList.add('hidden');
+      if (this.dom.btnFocusDrawerToggle) this.dom.btnFocusDrawerToggle.classList.add('hidden');
+      if (this.dom.focusLeftDrawer) this.dom.focusLeftDrawer.classList.add('hidden');
     }
 
     // Redraw components because screen coordinates shift/expand
     this.renderTrackerLine();
     this.renderNotesOnOverlay();
-  },
-
-  initWidgetDrag(widget) {
-    const handle = widget ? widget.querySelector('.focus-drag-handle') : null;
-    const restoreBtn = widget ? widget.querySelector('.focus-widget-restore-btn') : null;
-    if (!widget || !handle) return;
-
-    let isDragging = false;
-    let startX, startY;
-    let initialLeft, initialTop;
-
-    const onStart = (e) => {
-      // If clicking action buttons (other than the restoreBtn itself), don't trigger drag
-      if (e.target.closest('button') && e.target.closest('button') !== restoreBtn) return;
-      
-      isDragging = true;
-      widget.classList.add('dragging');
-      
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      
-      startX = clientX;
-      startY = clientY;
-      
-      const rect = widget.getBoundingClientRect();
-      initialLeft = rect.left;
-      initialTop = rect.top;
-      
-      widget.style.right = 'auto';
-      widget.style.bottom = 'auto';
-      widget.style.left = `${initialLeft}px`;
-      widget.style.top = `${initialTop}px`;
-      
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onEnd);
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('touchend', onEnd);
-      
-      if (e.cancelable) e.preventDefault();
-    };
-
-    const onMove = (e) => {
-      if (!isDragging) return;
-      
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      
-      const dx = clientX - startX;
-      const dy = clientY - startY;
-      
-      let newLeft = initialLeft + dx;
-      let newTop = initialTop + dy;
-      
-      const rect = widget.getBoundingClientRect();
-      const viewportW = window.innerWidth;
-      const viewportH = window.innerHeight;
-      
-      // Prevent dragging off screen (keep 10px padding)
-      newLeft = Math.max(10, Math.min(newLeft, viewportW - rect.width - 10));
-      newTop = Math.max(10, Math.min(newTop, viewportH - rect.height - 10));
-      
-      widget.style.left = `${newLeft}px`;
-      widget.style.top = `${newTop}px`;
-      
-      if (e.cancelable) e.preventDefault();
-    };
-
-    const onEnd = () => {
-      isDragging = false;
-      widget.classList.remove('dragging');
-      
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onEnd);
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', onEnd);
-    };
-
-    handle.addEventListener('mousedown', onStart);
-    handle.addEventListener('touchstart', onStart, { passive: false });
-    
-    if (restoreBtn) {
-      restoreBtn.addEventListener('mousedown', onStart);
-      restoreBtn.addEventListener('touchstart', onStart, { passive: false });
-    }
-  },
+  }
 
 };
 

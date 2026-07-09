@@ -14,7 +14,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js') // Preload is available but empty if not needed
     },
     // Icon configuration (optional, defaults to Electron icon if not specified)
-    title: "KnitFlow - Interactive Knitting Progress Tracker"
+    title: "PurlWise - Interactive Knitting Progress Tracker"
   });
 
   mainWindow.loadFile('index.html');

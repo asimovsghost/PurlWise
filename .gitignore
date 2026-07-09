@@ -9,6 +9,7 @@ Thumbs.db
 
 # Build/Dist directories
 dist/
+dist-installer/
 www/
 
 # Logs
@@ -41,3 +42,9 @@ android/app/build/
 android/build/
 android/app/src/main/assets/public/
 android/.idea/
+
+# AI guidelines
+ai_guide.md
+
+# Build scripts
+build.ps1

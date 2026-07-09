@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">KnitFlow</string>
-    <string name="title_activity_main">KnitFlow</string>
-    <string name="package_name">com.knitflow.app</string>
-    <string name="custom_url_scheme">com.knitflow.app</string>
+    <string name="app_name">PurlWise</string>
+    <string name="title_activity_main">PurlWise</string>
+    <string name="package_name">com.purlwise.app</string>
+    <string name="custom_url_scheme">com.purlwise.app</string>
 </resources>

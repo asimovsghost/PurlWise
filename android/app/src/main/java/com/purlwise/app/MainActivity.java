@@ -1,4 +1,4 @@
-package com.knitflow.app;
+package com.purlwise.app;
 
 import com.getcapacitor.BridgeActivity;
 
