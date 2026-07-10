@@ -113,7 +113,21 @@
         <div id="dashboard-stash-section" class="stash-section hidden">
           <div class="stash-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2>Your Yarn Stash</h2>
-            <button id="btn-add-stash" class="btn btn-primary">+ Add Yarn</button>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <select id="stash-sort-select" style="padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-secondary); color: var(--color-text); font-size: 0.9rem; cursor: pointer;">
+                <option value="brand_asc">Brand (A-Z)</option>
+                <option value="brand_desc">Brand (Z-A)</option>
+                <option value="name_asc">Name (A-Z)</option>
+                <option value="date_desc">Date Added (Newest)</option>
+                <option value="date_asc">Date Added (Oldest)</option>
+                <option value="weight_desc">Weight (Highest)</option>
+                <option value="weight_asc">Weight (Lowest)</option>
+                <option value="skeins_desc">Skeins (Highest)</option>
+                <option value="skeins_asc">Skeins (Lowest)</option>
+                <option value="category_asc">Weight Category (Lace ➔ Jumbo)</option>
+              </select>
+              <button id="btn-add-stash" class="btn btn-primary">+ Add Yarn</button>
+            </div>
           </div>
           <div id="stash-grid" class="projects-grid stash-grid">
             <!-- Dynamic stash cards go here -->
@@ -560,7 +574,7 @@
           <div class="form-group-row">
             <div class="form-group half">
               <label for="stash-quantity-skeins">Number of Skeins</label>
-              <input type="number" id="stash-quantity-skeins" placeholder="e.g., 5" min="0" step="any" required>
+              <input type="number" id="stash-quantity-skeins" placeholder="e.g., 5" min="0" step="any">
             </div>
             <div class="form-group half">
               <label for="stash-quantity-weight">Total Weighed Weight (g)</label>
@@ -615,6 +629,7 @@
       </div>
       <small id="allocate-max-hint" style="color: var(--color-text-muted); display: block; margin-top: 4px;">Available: 1</small>
       <div class="modal-footer">
+        <button type="button" id="btn-remove-allocation" class="btn btn-danger hidden" style="margin-right: auto;">Remove</button>
         <button type="button" id="btn-cancel-allocate" class="btn btn-secondary">Cancel</button>
         <button type="button" id="btn-save-allocate" class="btn btn-primary">Allocate</button>
       </div>

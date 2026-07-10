@@ -994,7 +994,7 @@ const App = {
                     ${projectYarns.map(yarn => {
                       const allocText = window.StashManager.formatAllocation(yarn, project.id);
                       return `
-                        <div class="project-card-yarn-badge">
+                        <div class="project-card-yarn-badge" data-yarn-id="${yarn.id}">
                           <span class="color-dot" style="background-color: ${yarn.colorHex || '#ddd'}"></span>
                           <span class="yarn-badge-name" style="font-weight:500;">${yarn.brand} ${yarn.name}</span>
                           <span class="yarn-badge-qty" style="margin-left:auto; font-weight:600;">${allocText}</span>
@@ -1042,6 +1042,17 @@ const App = {
         if (window.StashManager) {
           window.StashManager.openAllocateModal(project.id);
         }
+      });
+
+      // Bind edit allocation click to yarn badges on the card
+      card.querySelectorAll('.project-card-yarn-badge').forEach(badge => {
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const yarnId = badge.dataset.yarnId;
+          if (window.StashManager) {
+            window.StashManager.openAllocateModal(project.id, yarnId);
+          }
+        });
       });
 
       delBtn.addEventListener('click', async (e) => {

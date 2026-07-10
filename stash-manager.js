@@ -44,6 +44,11 @@ const StashManager = {
       // Buttons
       btnPrev: document.getElementById('btn-stash-prev'),
       btnNext: document.getElementById('btn-stash-next'),
+      
+      // Sorting
+      sortSelect: document.getElementById('stash-sort-select'),
+
+      // Form Elements
       btnSave: document.getElementById('btn-save-stash'),
       btnCancel: document.getElementById('btn-cancel-stash'),
       
@@ -77,6 +82,7 @@ const StashManager = {
       btnCloseAllocate: document.getElementById('btn-close-allocate-modal'),
       btnCancelAllocate: document.getElementById('btn-cancel-allocate'),
       btnSaveAllocate: document.getElementById('btn-save-allocate'),
+      btnRemoveAllocation: document.getElementById('btn-remove-allocation'),
       allocSelect: document.getElementById('allocate-yarn-select'),
       allocQty: document.getElementById('allocate-quantity'),
       allocSkeins: document.getElementById('allocate-skeins'),
@@ -115,6 +121,17 @@ const StashManager = {
       });
     }
 
+    // Sorting
+    if(this.dom.sortSelect) {
+      const savedSort = localStorage.getItem('stashSortPreference') || 'brand_asc';
+      this.dom.sortSelect.value = savedSort;
+      
+      this.dom.sortSelect.addEventListener('change', (e) => {
+        localStorage.setItem('stashSortPreference', e.target.value);
+        this.renderGrid();
+      });
+    }
+
     // Autocomplete events
     this.setupAutocomplete(this.dom.fBrand, 'brand', this.dom.autoBrand);
     this.setupAutocomplete(this.dom.fName, 'name', this.dom.autoName);
@@ -130,6 +147,9 @@ const StashManager = {
       this.dom.btnCloseAllocate.addEventListener('click', () => this.closeAllocateModal());
       this.dom.btnCancelAllocate.addEventListener('click', () => this.closeAllocateModal());
       this.dom.btnSaveAllocate.addEventListener('click', () => this.confirmAllocation());
+      if (this.dom.btnRemoveAllocation) {
+        this.dom.btnRemoveAllocation.addEventListener('click', () => this.removeAllocation());
+      }
       
       this.dom.allocSelect.addEventListener('change', () => this.updateAllocateHint());
     } else {
@@ -178,7 +198,54 @@ const StashManager = {
     this.dom.stashGrid.classList.remove('hidden');
     this.dom.stashEmptyState.classList.add('hidden');
 
-    this.stash.forEach(yarn => {
+    const sortPref = localStorage.getItem('stashSortPreference') || 'brand_asc';
+    const weightOrder = ['Lace', 'Fingering', 'Sport', 'DK', 'Worsted', 'Aran', 'Bulky', 'Super Bulky'];
+    
+    const sortedStash = [...this.stash].sort((a, b) => {
+      switch (sortPref) {
+        case 'brand_asc':
+          return (a.brand || '').localeCompare(b.brand || '') || (a.name || '').localeCompare(b.name || '');
+        case 'brand_desc':
+          return (b.brand || '').localeCompare(a.brand || '') || (b.name || '').localeCompare(a.name || '');
+        case 'name_asc':
+          return (a.name || '').localeCompare(b.name || '');
+        case 'date_desc':
+          return new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0);
+        case 'date_asc':
+          return new Date(a.dateAdded || 0) - new Date(b.dateAdded || 0);
+        case 'weight_desc': {
+          const wA = a.unitType === 'g' ? (a.quantityAvailable || 0) : ((a.quantityAvailable || 0) * (a.skeinWeight || 0));
+          const wB = b.unitType === 'g' ? (b.quantityAvailable || 0) : ((b.quantityAvailable || 0) * (b.skeinWeight || 0));
+          return wB - wA;
+        }
+        case 'weight_asc': {
+          const wA = a.unitType === 'g' ? (a.quantityAvailable || 0) : ((a.quantityAvailable || 0) * (a.skeinWeight || 0));
+          const wB = b.unitType === 'g' ? (b.quantityAvailable || 0) : ((b.quantityAvailable || 0) * (b.skeinWeight || 0));
+          return wA - wB;
+        }
+        case 'skeins_desc': {
+          const sA = a.unitType === 'g' ? (a.skeinWeight ? (a.quantityAvailable || 0) / a.skeinWeight : 0) : (a.quantityAvailable || 0);
+          const sB = b.unitType === 'g' ? (b.skeinWeight ? (b.quantityAvailable || 0) / b.skeinWeight : 0) : (b.quantityAvailable || 0);
+          return sB - sA;
+        }
+        case 'skeins_asc': {
+          const sA = a.unitType === 'g' ? (a.skeinWeight ? (a.quantityAvailable || 0) / a.skeinWeight : 0) : (a.quantityAvailable || 0);
+          const sB = b.unitType === 'g' ? (b.skeinWeight ? (b.quantityAvailable || 0) / b.skeinWeight : 0) : (b.quantityAvailable || 0);
+          return sA - sB;
+        }
+        case 'category_asc': {
+          const idxA = weightOrder.indexOf(a.weight);
+          const idxB = weightOrder.indexOf(b.weight);
+          const wA = idxA === -1 ? 99 : idxA;
+          const wB = idxB === -1 ? 99 : idxB;
+          return wA - wB || (a.brand || '').localeCompare(b.brand || '');
+        }
+        default:
+          return (a.brand || '').localeCompare(b.brand || '');
+      }
+    });
+
+    sortedStash.forEach(yarn => {
       const card = document.createElement('div');
       card.className = 'yarn-card';
       
@@ -344,9 +411,26 @@ const StashManager = {
     
     const skeinWeight = parseFloat(this.dom.fSkeinWeight.value) || null;
     const skeinLength = parseFloat(this.dom.fSkeinLength.value) || null;
-    const quantitySkeins = parseFloat(this.dom.fQuantitySkeins.value) || 0;
+    
+    const quantitySkeinsVal = this.dom.fQuantitySkeins.value.trim();
+    let quantitySkeins = quantitySkeinsVal !== '' ? parseFloat(quantitySkeinsVal) : null;
+    
     const quantityWeightVal = this.dom.fQuantityWeight.value.trim();
     const quantityWeight = quantityWeightVal !== '' ? parseFloat(quantityWeightVal) : null;
+    
+    if ((quantitySkeins === null || isNaN(quantitySkeins) || quantitySkeins <= 0) && 
+        (quantityWeight === null || isNaN(quantityWeight) || quantityWeight <= 0)) {
+      await window.Dialogs.alert("Please input either the number of skeins or the total weight.");
+      return;
+    }
+
+    if (quantitySkeins === null || isNaN(quantitySkeins) || quantitySkeins === 0) {
+      if (quantityWeight !== null && skeinWeight) {
+        quantitySkeins = quantityWeight / skeinWeight;
+      } else {
+        quantitySkeins = 0;
+      }
+    }
     
     const metersPerGram = (skeinWeight && skeinLength) ? (skeinLength / skeinWeight) : null;
     
@@ -530,6 +614,7 @@ const StashManager = {
       const alloc = yarn.allocations.find(a => a.projectId === projectId);
       const item = document.createElement('div');
       item.className = 'project-yarn-item';
+      item.style.cursor = 'pointer';
       const allocText = this.formatAllocation(yarn, projectId);
       item.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -543,17 +628,40 @@ const StashManager = {
         <button class="btn-text-only" style="font-size:0.75rem; color:var(--color-danger); text-align:left; padding:0;" data-id="${yarn.id}">Remove</button>
       `;
 
-      item.querySelector('button').addEventListener('click', () => this.removeAllocation(yarn, projectId));
+      item.querySelector('button').addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.removeAllocation(yarn, projectId);
+      });
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        this.openAllocateModal(projectId, yarn.id);
+      });
       this.dom.projectYarnList.appendChild(item);
     });
   },
 
-  async openAllocateModal(projectId = null) {
+  async openAllocateModal(projectId = null, editYarnId = null) {
     this.currentAllocateProjectId = projectId;
+    this.editingAllocation = null;
     
-    // Populate select with available yarn
+    // Check if we are in edit mode
+    if (editYarnId) {
+      const targetYarn = this.stash.find(y => y.id === editYarnId);
+      if (targetYarn) {
+        const alloc = targetYarn.allocations.find(a => a.projectId === projectId);
+        if (alloc) {
+          this.editingAllocation = {
+            yarnId: editYarnId,
+            projectId: projectId,
+            currentQty: alloc.quantity
+          };
+        }
+      }
+    }
+
+    // Populate select with available yarn (or include the editing yarn even if available qty is 0)
     this.dom.allocSelect.innerHTML = '';
-    const availableYarn = this.stash.filter(y => y.quantityAvailable > 0);
+    const availableYarn = this.stash.filter(y => y.quantityAvailable > 0 || (this.editingAllocation && y.id === editYarnId));
     
     if (availableYarn.length === 0) {
       await window.Dialogs.alert("No yarn available in your stash to allocate.");
@@ -570,24 +678,46 @@ const StashManager = {
       this.dom.allocSelect.appendChild(opt);
     });
 
+    this.dom.allocSelect.disabled = false;
+
+    if (this.dom.btnRemoveAllocation) {
+      if (this.editingAllocation) {
+        this.dom.btnRemoveAllocation.classList.remove('hidden');
+      } else {
+        this.dom.btnRemoveAllocation.classList.add('hidden');
+      }
+    }
+
+    if (this.editingAllocation) {
+      this.dom.allocSelect.value = editYarnId;
+    }
+
     this.updateAllocateHint();
     this.dom.modalAllocate.classList.add('active');
   },
 
   closeAllocateModal() {
     this.dom.modalAllocate.classList.remove('active');
+    this.dom.allocSelect.disabled = false;
     this.currentAllocateProjectId = null;
+    this.editingAllocation = null;
   },
 
   updateAllocateHint() {
     const selected = this.dom.allocSelect.options[this.dom.allocSelect.selectedIndex];
     if (selected) {
-      const max = parseFloat(selected.dataset.max);
       const yarn = this.stash.find(y => y.id === selected.value);
       if (!yarn) return;
 
       const unit = yarn.unitType || 'g';
-      this.dom.allocHint.textContent = `Available: ${parseFloat(max.toFixed(1))}${unit}`;
+      let max = parseFloat(selected.dataset.max);
+      
+      if (this.editingAllocation && selected.value === this.editingAllocation.yarnId) {
+        max = yarn.quantityAvailable + this.editingAllocation.currentQty;
+        this.dom.allocHint.textContent = `Available to allocate: ${parseFloat(max.toFixed(1))}${unit} (Current: ${parseFloat(this.editingAllocation.currentQty.toFixed(1))}${unit})`;
+      } else {
+        this.dom.allocHint.textContent = `Available: ${parseFloat(max.toFixed(1))}${unit}`;
+      }
 
       // Reset input values
       this.dom.allocQty.value = '';
@@ -617,22 +747,33 @@ const StashManager = {
           this.dom.allocSkeins.value = isNaN(w) ? '' : parseFloat((w / yarn.skeinWeight).toFixed(2));
         };
 
-        // Set initial values to 1 skein
-        this.dom.allocSkeins.value = 1;
-        this.dom.allocQty.value = yarn.skeinWeight;
+        // Set initial values
+        if (this.editingAllocation && selected.value === this.editingAllocation.yarnId) {
+          if (unit === 'g') {
+            this.dom.allocQty.value = this.editingAllocation.currentQty;
+            this.dom.allocSkeins.value = (this.editingAllocation.currentQty / yarn.skeinWeight).toFixed(2);
+          } else {
+            this.dom.allocSkeins.value = this.editingAllocation.currentQty;
+            this.dom.allocQty.value = (this.editingAllocation.currentQty * yarn.skeinWeight).toFixed(1);
+          }
+        } else {
+          this.dom.allocSkeins.value = 1;
+          this.dom.allocQty.value = yarn.skeinWeight;
+        }
       } else {
         // No skeinWeight spec
+        const isEditingCurrent = this.editingAllocation && selected.value === this.editingAllocation.yarnId;
         if (unit === 'g') {
           this.dom.allocSkeinsGroup.classList.add('hidden');
           this.dom.allocWeightGroup.classList.remove('hidden');
           this.dom.allocQty.max = max;
-          this.dom.allocQty.value = Math.min(50, max);
+          this.dom.allocQty.value = isEditingCurrent ? this.editingAllocation.currentQty : Math.min(50, max);
           this.dom.allocQty.oninput = null;
         } else {
           this.dom.allocSkeinsGroup.classList.remove('hidden');
           this.dom.allocWeightGroup.classList.add('hidden');
           this.dom.allocSkeins.max = max;
-          this.dom.allocSkeins.value = Math.min(1, max);
+          this.dom.allocSkeins.value = isEditingCurrent ? this.editingAllocation.currentQty : Math.min(1, max);
           this.dom.allocSkeins.oninput = null;
         }
       }
@@ -650,7 +791,6 @@ const StashManager = {
     let qty = 0;
 
     if (yarn.skeinWeight) {
-      // Prioritize quantity entered in primary unit (or calculate from the typed input)
       if (unit === 'g') {
         qty = parseFloat(this.dom.allocQty.value);
         if (isNaN(qty) && !isNaN(parseFloat(this.dom.allocSkeins.value))) {
@@ -670,11 +810,6 @@ const StashManager = {
       await window.Dialogs.alert("Please enter a valid quantity.");
       return;
     }
-    
-    if (qty > yarn.quantityAvailable) {
-      await window.Dialogs.alert("Quantity exceeds available stock.");
-      return;
-    }
 
     const projectId = this.currentAllocateProjectId || (window.App && window.App.activeProject ? window.App.activeProject.id : null);
     if (!projectId) {
@@ -682,15 +817,44 @@ const StashManager = {
       return;
     }
 
-    // Update yarn
     const existingAlloc = yarn.allocations.find(a => a.projectId === projectId);
-    if (existingAlloc) {
-      existingAlloc.quantity += qty;
-    } else {
-      yarn.allocations.push({ projectId, quantity: qty });
-    }
     
-    yarn.quantityAvailable -= qty;
+    if (this.editingAllocation && yarnId === this.editingAllocation.yarnId) {
+      const diff = qty - this.editingAllocation.currentQty;
+      if (diff > yarn.quantityAvailable) {
+        await window.Dialogs.alert("Quantity exceeds available stock.");
+        return;
+      }
+      if (existingAlloc) {
+        existingAlloc.quantity = qty;
+      }
+      yarn.quantityAvailable -= diff;
+    } else {
+      if (qty > yarn.quantityAvailable) {
+        await window.Dialogs.alert("Quantity exceeds available stock.");
+        return;
+      }
+
+      // If we are editing, but switched to a different yarn, we must remove the old allocation!
+      if (this.editingAllocation && yarnId !== this.editingAllocation.yarnId) {
+        const oldYarn = this.stash.find(y => y.id === this.editingAllocation.yarnId);
+        if (oldYarn) {
+          const oldAllocIndex = oldYarn.allocations.findIndex(a => a.projectId === projectId);
+          if (oldAllocIndex > -1) {
+            oldYarn.quantityAvailable += oldYarn.allocations[oldAllocIndex].quantity;
+            oldYarn.allocations.splice(oldAllocIndex, 1);
+            await window.DBManager.saveStash(oldYarn);
+          }
+        }
+      }
+
+      if (existingAlloc) {
+        existingAlloc.quantity += qty;
+      } else {
+        yarn.allocations.push({ projectId, quantity: qty });
+      }
+      yarn.quantityAvailable -= qty;
+    }
 
     try {
       await window.DBManager.saveStash(yarn);
@@ -710,6 +874,18 @@ const StashManager = {
   },
 
   async removeAllocation(yarn, projectId) {
+    if (!yarn && this.editingAllocation) {
+      yarn = this.stash.find(y => y.id === this.editingAllocation.yarnId);
+      projectId = this.editingAllocation.projectId;
+    }
+    
+    if (!yarn || !projectId) return;
+
+    if (this.dom.modalAllocate.classList.contains('active')) {
+      const confirmed = await window.Dialogs.confirm("Remove this yarn allocation from the project?");
+      if (!confirmed) return;
+    }
+
     const allocIndex = yarn.allocations.findIndex(a => a.projectId === projectId);
     if (allocIndex > -1) {
       const alloc = yarn.allocations[allocIndex];
@@ -718,6 +894,9 @@ const StashManager = {
       
       try {
         await window.DBManager.saveStash(yarn);
+        if (this.dom.modalAllocate.classList.contains('active')) {
+          this.closeAllocateModal();
+        }
         this.refreshProjectYarnPanel(projectId);
         if (window.App) {
           window.App.renderProjectsGrid();

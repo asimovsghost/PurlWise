@@ -14,6 +14,7 @@ The project is packaged for **Windows Desktop** (using Electron) and **Android M
 *   **🔖 Smart Page Bookmarks:** Quickly save pages in your PDF patterns. A floating **"← Back to Page X"** button automatically appears when jumping, allowing you to return to where you were with one click.
 *   **🔄 Per-Page Rotation:** Rotate specific chart pages in 90-degree increments. Rotations are persisted per-page to accommodate wide horizontal lace sheets.
 *   **📝 Coordinate-based Sticky Notes:** Double-click anywhere on the pattern wrapper to drop a cozy sticky note. Note coordinates scale and reposition automatically as you zoom and rotate.
+*   **🧶 Integrated Yarn Stash:** Catalog and track your yarn inventory (by weight or skein count), allocate stash stock to specific projects, and easily view allocations in both the project dashboard and the workspace reader sidebar. Features 10 customizable sorting modes.
 *   **💾 Local-First Storage:** Projects, PDFs/images, bookmarks, notes, and layout properties are saved locally using a robust IndexedDB database.
 *   **🌓 Dark/Light Theme Memory:** The app remembers your preferred layout theme across sessions.
 *   **📥 Migration & Backups:** Export all project progress, custom counters, bookmarks, and patterns into a single backup file to migrate onto another machine.
@@ -86,6 +87,7 @@ The compiled package will be generated at `android/app/build/outputs/apk/debug/a
 *   `index.html` - The main user interface.
 *   `style.css` - Responsive typography, themes, and cozy custom component layouts.
 *   `app.js` - Main application logic, including database orchestration, layout scaling, and notes management.
+*   `stash-manager.js` - Dedicated controller for the My Stash inventory, allocations, and UI wizard.
 *   `pdf-viewer.js` - Helper interface for loading and scaling PDF pages.
 *   `sample-pattern.js` - Base64 data provider for the quickstart knitting template.
 *   `main.js` & `preload.js` - Electron desktop lifecycle and security bridge.
