@@ -1856,7 +1856,8 @@ const App = {
     // Ignore keys if user is typing in notes/form fields
     if (document.activeElement.tagName === 'INPUT' || 
         document.activeElement.tagName === 'TEXTAREA' || 
-        document.activeElement.tagName === 'SELECT') {
+        document.activeElement.tagName === 'SELECT' ||
+        document.activeElement.isContentEditable) {
       return;
     }
 
