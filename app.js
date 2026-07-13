@@ -384,9 +384,7 @@ const App = {
       viewWorkspace: document.getElementById('view-workspace'),
       
       // Global controls
-      btnThemeToggle: document.getElementById('btn-theme-toggle'),
-      themeSun: document.getElementById('theme-sun'),
-      themeMoon: document.getElementById('theme-moon'),
+      themeSelector: document.getElementById('theme-selector'),
       btnWakelockToggle: document.getElementById('btn-wakelock-toggle'),
       wakelockIconOn: document.getElementById('wakelock-icon-on'),
       wakelockIconOff: document.getElementById('wakelock-icon-off'),
@@ -522,8 +520,10 @@ const App = {
   },
 
   bindEvents() {
-    // Theme Toggle
-    this.dom.btnThemeToggle.addEventListener('click', () => this.toggleTheme());
+    // Theme Selector
+    if (this.dom.themeSelector) {
+      this.dom.themeSelector.addEventListener('change', (e) => this.changeTheme(e.target.value));
+    }
     
     // Wake Lock Toggle
     if (this.dom.btnWakelockToggle) {
@@ -811,23 +811,32 @@ const App = {
   // THEME & SOUND CONTROLS
   // ----------------------------------------------------
   initTheme() {
-    const savedTheme = localStorage.getItem('purlwise-theme');
-    const isDark = (savedTheme === 'dark');
-    document.body.classList.toggle('dark-mode', isDark);
-    document.body.classList.toggle('light-mode', !isDark);
+    const savedTheme = localStorage.getItem('purlwise-theme') || 'light';
+    const isDarkBase = (savedTheme === 'dark' || savedTheme === 'ocean' || savedTheme === 'fireplace');
+    document.body.classList.toggle('dark-mode', isDarkBase);
+    document.body.classList.toggle('light-mode', !isDarkBase);
+    document.body.classList.toggle('theme-ocean', savedTheme === 'ocean');
+    document.body.classList.toggle('theme-autumn', savedTheme === 'autumn');
+    document.body.classList.toggle('theme-christmas', savedTheme === 'christmas');
+    document.body.classList.toggle('theme-cafe', savedTheme === 'cafe');
+    document.body.classList.toggle('theme-fireplace', savedTheme === 'fireplace');
     
-    this.dom.themeSun.classList.toggle('hidden', isDark);
-    this.dom.themeMoon.classList.toggle('hidden', !isDark);
+    if (this.dom.themeSelector) {
+      this.dom.themeSelector.value = savedTheme;
+    }
   },
 
-  toggleTheme() {
-    const isDark = document.body.classList.toggle('dark-mode');
-    document.body.classList.toggle('light-mode', !isDark);
+  changeTheme(themeValue) {
+    const isDarkBase = (themeValue === 'dark' || themeValue === 'ocean' || themeValue === 'fireplace');
+    document.body.classList.toggle('dark-mode', isDarkBase);
+    document.body.classList.toggle('light-mode', !isDarkBase);
+    document.body.classList.toggle('theme-ocean', themeValue === 'ocean');
+    document.body.classList.toggle('theme-autumn', themeValue === 'autumn');
+    document.body.classList.toggle('theme-christmas', themeValue === 'christmas');
+    document.body.classList.toggle('theme-cafe', themeValue === 'cafe');
+    document.body.classList.toggle('theme-fireplace', themeValue === 'fireplace');
     
-    this.dom.themeSun.classList.toggle('hidden', isDark);
-    this.dom.themeMoon.classList.toggle('hidden', !isDark);
-    
-    localStorage.setItem('purlwise-theme', isDark ? 'dark' : 'light');
+    localStorage.setItem('purlwise-theme', themeValue);
   },
 
   toggleSound() {

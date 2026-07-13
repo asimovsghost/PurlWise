@@ -1,6 +1,6 @@
 # 🧶 PurlWise
 
-PurlWise is a beautiful, local-first, interactive knitting pattern tracking application. Built with a warm, cozy terracotta theme, it is designed to help makers keep their place in complex cable charts, track active stitches/rows, and annotate patterns effortlessly.
+PurlWise is a beautiful, local-first, interactive knitting pattern tracking application. Built with a stunning glassmorphism aesthetic featuring textured knit backgrounds for both light and dark themes, it is designed to help makers keep their place in complex cable charts, track active stitches/rows, and annotate patterns effortlessly.
 
 The project is packaged for **Windows Desktop** (using Electron) and **Android Mobile** (using Capacitor).
 
@@ -85,8 +85,9 @@ The compiled package will be generated at `android/app/build/outputs/apk/debug/a
 ## 📁 Project Structure
 
 *   `index.html` - The main user interface.
-*   `style.css` - Responsive typography, themes, and cozy custom component layouts.
+*   `style.css` - Responsive typography, themes, and cozy glassmorphism component layouts.
 *   `app.js` - Main application logic, including database orchestration, layout scaling, and notes management.
+*   `assets/` - Contains UI assets such as the textured knitted background images and SVG masks.
 *   `stash-manager.js` - Dedicated controller for the My Stash inventory, allocations, and UI wizard.
 *   `pdf-viewer.js` - Helper interface for loading and scaling PDF pages.
 *   `sample-pattern.js` - Base64 data provider for the quickstart knitting template.
